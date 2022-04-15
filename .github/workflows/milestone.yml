@@ -12,7 +12,7 @@ jobs:
       pull-requests: write    
     runs-on: ubuntu-latest
     steps:
-      - uses: zoispag/action-assign-milestone@v1
+      - uses: zoispag/action-assign-milestone@v2
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           milestone: "2.16 release"
