@@ -305,6 +305,7 @@ dependencies {
     implementation 'com.drakeet.drawer:drawer:1.0.3'
     implementation 'uk.co.samuelwall:material-tap-target-prompt:3.3.2'
     implementation 'com.github.mrudultora:Colorpicker:1.2.0'
+    implementation "androidx.work:work-runtime-ktx:2.7.1"
 
     // Cannot use debugImplementation since classes need to be imported in AnkiDroidApp
     // and there's no no-op version for release build. Usage has been disabled for release
