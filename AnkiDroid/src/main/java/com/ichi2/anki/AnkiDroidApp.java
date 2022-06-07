@@ -438,6 +438,9 @@ public class AnkiDroidApp extends Application implements androidx.work.Configura
                         ExistingPeriodicWorkPolicy.KEEP,
                         deckMetaDataWorker
                 );
+
+        // Does the required work in setting up new Worker.
+        DeckMetaDataWorker.Companion.setupNewWorker(this);
     }
 
 
