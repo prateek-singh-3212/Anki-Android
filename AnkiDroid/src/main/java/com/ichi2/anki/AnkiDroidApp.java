@@ -43,6 +43,7 @@ import com.ichi2.anki.contextmenu.CardBrowserContextMenu;
 import com.ichi2.anki.exception.StorageAccessException;
 import com.ichi2.anki.services.BootService;
 import com.ichi2.anki.services.NotificationService;
+import com.ichi2.anki.worker.NotificationWorkManager;
 import com.ichi2.compat.CompatHelper;
 import com.ichi2.utils.AdaptionUtil;
 import com.ichi2.utils.ExceptionUtil;
@@ -52,9 +53,13 @@ import com.ichi2.utils.Permissions;
 
 import java.io.InputStream;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 import timber.log.Timber;
 
 import static com.ichi2.anki.CrashReportService.sendExceptionReport;
@@ -63,7 +68,7 @@ import static timber.log.Timber.DebugTree;
 /**
  * Application class.
  */
-public class AnkiDroidApp extends Application {
+public class AnkiDroidApp extends Application implements androidx.work.Configuration.Provider {
 
     /** Running under instrumentation. a "/androidTest" directory will be created which contains a test collection */
     public static boolean INSTRUMENTATION_TESTING = false;
@@ -226,6 +231,8 @@ public class AnkiDroidApp extends Application {
 
         Timber.i("AnkiDroidApp: Starting Services");
         new BootService().onReceive(this, new Intent(this, BootService.class));
+
+        Timber.i("AnkiDroidApp: Starting Workers");
 
         // Register for notifications
         mNotifications.observeForever(unused -> NotificationService.triggerNotificationFor(this));
@@ -412,6 +419,19 @@ public class AnkiDroidApp extends Application {
             return null;
         }
         return ExceptionUtil.getExceptionMessage(error);
+    }
+
+    /**
+     * This Method sets the Work Manager Configuration. We are using Custom work manager Initialization.
+     * **Custom work manager is disabled in Manifest**.
+     * We are using custom work manager because UNIT TESTS are failing.
+     * */
+    @NonNull
+    @Override
+    public androidx.work.Configuration getWorkManagerConfiguration() {
+        return new androidx.work.Configuration.Builder()
+                .setMinimumLoggingLevel(android.util.Log.INFO)
+                .build();
     }
 
     /**
