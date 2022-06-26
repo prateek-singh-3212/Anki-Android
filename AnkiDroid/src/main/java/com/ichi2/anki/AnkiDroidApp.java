@@ -56,6 +56,7 @@ import net.ankiweb.rsdroid.BackendFactory;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,7 +68,7 @@ import static timber.log.Timber.DebugTree;
 /**
  * Application class.
  */
-public class AnkiDroidApp extends Application {
+public class AnkiDroidApp extends Application implements androidx.work.Configuration.Provider {
 
     /** Running under instrumentation. a "/androidTest" directory will be created which contains a test collection */
     public static boolean INSTRUMENTATION_TESTING = false;
@@ -237,9 +238,11 @@ public class AnkiDroidApp extends Application {
             }
         }
 
+        // TODO: Notification CleanUP. Delete the Boot Service after successful implementation of Notification Work Manager.
         Timber.i("AnkiDroidApp: Starting Services");
         new BootService().onReceive(this, new Intent(this, BootService.class));
 
+        // TODO: Notification CleanUP. Delete the Notification Service after successful implementation of Notification Work Manager.
         // Register for notifications
         mNotifications.observeForever(unused -> NotificationService.triggerNotificationFor(this));
 
@@ -428,6 +431,20 @@ public class AnkiDroidApp extends Application {
             return null;
         }
         return ExceptionUtil.getExceptionMessage(error);
+    }
+
+    /**
+     * This Method sets the Work Manager Configuration. We are using Custom work manager Initialization.
+     * **Custom work manager is disabled in Manifest**.
+     * TODO: Remove custom implementation after implementing 14 tests using WorkManagerTestInitHelper. SEE: https://github.com/ankidroid/Anki-Android/pull/11487/commits/6c164ec897df16c8545767570b18c706b41c9451#r906713884
+     * We are using custom work manager because UNIT TESTS are failing.
+     * */
+    @NonNull
+    @Override
+    public androidx.work.Configuration getWorkManagerConfiguration() {
+        return new androidx.work.Configuration.Builder()
+                .setMinimumLoggingLevel(android.util.Log.INFO)
+                .build();
     }
 
     /**
