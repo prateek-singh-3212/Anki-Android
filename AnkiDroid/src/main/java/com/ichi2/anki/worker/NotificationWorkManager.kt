@@ -16,10 +16,13 @@
 
 package com.ichi2.anki.worker
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ichi2.anki.*
+import com.ichi2.compat.CompatHelper
 import com.ichi2.libanki.sched.Counts
 import com.ichi2.libanki.sched.DeckDueTreeNode
 import com.ichi2.libanki.utils.TimeManager
@@ -84,7 +87,7 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
         // Decks may have been deleted
         if (deckIdsToTrigger.size != 0) {
             Timber.d("Decks deleted")
-            // TODO: Cancel deck notification when user deletes a particular deck to handle case [user deletes a deck between the notification being added and executed]
+            NotificationHelper(context).removeDeckNotification(deckIds = deckIdsToTrigger.toLongArray())
         }
 
         // Updating time for next trigger.
@@ -103,6 +106,8 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
      */
     private fun fireDeckNotification(deck: DeckDueTreeNode) {
         Timber.d("Firing deck notification for did -> %d", deck.did)
+        val notificationHelper = NotificationHelper(context)
+
         val title = context.getString(R.string.reminder_title)
         val counts =
             Counts(deck.newCount, deck.lrnCount, deck.revCount)
@@ -112,10 +117,25 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
             deck.fullDeckName
         )
 
-        // TODO: Remove log used for now to remove compilation error.
-        Timber.d("$title $counts $message")
-        // TODO: Check the minimum no. of cards to send notification.
-        // TODO: Build and fire notification.
+        // TODO: Check the minimum no. of cards to send notification. This will be Implemented after successful Implementation of Deck Notification UI.
+
+        // Creates an explicit intent for an DeckPiker Activity.
+        val resultIntent = Intent(context, DeckPicker::class.java)
+        resultIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        val resultPendingIntent = CompatHelper.compat.getImmutableActivityIntent(
+            context, 0, resultIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Build and fire notification.
+        val notification = notificationHelper.buildNotification(
+            NotificationChannels.Channel.GENERAL,
+            title,
+            message,
+            resultPendingIntent
+        )
+
+        notificationHelper.triggerNotificationNow(INDIVIDUAL_DECK_NOTIFICATION, notification)
     }
 
     /**
@@ -123,6 +143,8 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
      * */
     private fun fireAllDeckNotification(deckList: List<DeckDueTreeNode>) {
         Timber.d("Firing all deck notification.")
+        val notificationHelper = NotificationHelper(context)
+
         val preferences = AnkiDroidApp.getSharedPrefs(context)
         val minCardsDue = preferences.getInt(
             Preferences.MINIMUM_CARDS_DUE_FOR_NOTIFICATION,
@@ -137,11 +159,31 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
             totalDueCount.addRev(it.revCount)
         }
 
+        // Creates an explicit intent for an DeckPiker Activity.
+        val resultIntent = Intent(context, DeckPicker::class.java)
+        resultIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        val resultPendingIntent = CompatHelper.compat.getImmutableActivityIntent(
+            context, 0, resultIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         if (totalDueCount.count() < minCardsDue) {
             // Due card limit is higher.
             return
         }
-        // TODO: Build & Fire all deck notification.
+
+        // Build the notification
+        val notification = notificationHelper.buildNotification(
+            NotificationChannels.Channel.GENERAL,
+            context.resources.getString(R.string.all_deck_notification_new_title),
+            context.resources.getQuantityString(
+                R.plurals.all_deck_notification_new_message,
+                totalDueCount.count()
+            ),
+            resultPendingIntent
+        )
+
+        notificationHelper.triggerNotificationNow(ALL_DECK_NOTIFICATION_ID, notification)
     }
 
     /**
@@ -156,12 +198,14 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
         val initialDiff = TimeManager.time.intTimeMS() - nextTriggerTime
 
         Timber.d("Next trigger time $nextTriggerTime")
-//        TODO: Start work manager with initial delay though Notification Helper.
+        NotificationHelper(context).startNotificationWorkManager(initialDiff, true)
     }
 
     companion object {
         const val ONE_HOUR_MS = 60 * 60 * 1000
         const val ONE_DAY_MS = ONE_HOUR_MS * 24
+        private const val ALL_DECK_NOTIFICATION_ID = 11
+        private const val INDIVIDUAL_DECK_NOTIFICATION = 22
 
         /**
          * Calculates the next time to trigger the Notification WorkManager.
