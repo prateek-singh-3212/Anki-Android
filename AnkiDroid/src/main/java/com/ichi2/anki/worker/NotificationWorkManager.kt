@@ -16,13 +16,15 @@
 
 package com.ichi2.anki.worker
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.ichi2.anki.AnkiDroidApp
-import com.ichi2.anki.CollectionHelper
-import com.ichi2.anki.Preferences
+import com.ichi2.anki.*
+import com.ichi2.compat.CompatHelper
 import com.ichi2.libanki.Collection
+import com.ichi2.libanki.sched.AbstractSched
 import com.ichi2.libanki.sched.Counts
 import com.ichi2.libanki.sched.DeckDueTreeNode
 import timber.log.Timber
@@ -79,7 +81,7 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
                 fireDeckNotification(deckDetails)
             }
             Type.ALL_DECK -> {
-                fireAllDeckNotification(deckList)
+                fireAllDeckNotification(sched)
             }
         }
 
@@ -94,11 +96,15 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
         val counts = Counts(did.newCount, did.lrnCount, did.revCount)
         val message = String.format("%d cards due in %s", counts.count(), did.lastDeckNameComponent)
 
+        Timber.d("$title $message ${counts.count()}")
         // TODO: Check the minimum no. of cards to send notification.
         // TODO: Build and fire notification.
     }
 
-    private fun fireAllDeckNotification(deckList: List<DeckDueTreeNode>) {
+    private fun fireAllDeckNotification(sched: AbstractSched) {
+        val ALL_DECK_NOTIFICATION_ID = 11
+        val notificationHelper = NotificationHelper(context)
+
         val preferences = AnkiDroidApp.getSharedPrefs(context)
         val minCardsDue = preferences.getString(
             Preferences.MINIMUM_CARDS_DUE_FOR_NOTIFICATION,
@@ -107,14 +113,37 @@ class NotificationWorkManager(val context: Context, workerParameters: WorkerPara
 
         // All Decks Notification.
         val totalDueCount = Counts()
-        deckList.forEach {
+        sched.deckDueList().forEach {
             totalDueCount.addLrn(it.lrnCount)
             totalDueCount.addNew(it.newCount)
             totalDueCount.addRev(it.revCount)
         }
         totalDueCount.count()
+
+        // Creates an explicit intent for an DeckPiker Activity.
+        val resultIntent = Intent(context, DeckPicker::class.java)
+        resultIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        val resultPendingIntent = CompatHelper.compat.getImmutableActivityIntent(
+            context, 0, resultIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val eta = sched.eta(totalDueCount)
+
         if (totalDueCount.count() > minCardsDue) {
-            // TODO: Build & Fire all deck notification.
+            // Build the notification
+            val notification = notificationHelper.buildNotification(
+                NotificationChannels.Channel.GENERAL,
+                "Where are you??",
+                String().format(
+                    "%d cards are waiting for you to review them. It only take %d mins",
+                    totalDueCount,
+                    eta
+                ),
+                resultPendingIntent
+            )
+
+            notificationHelper.triggerNotificationNow(ALL_DECK_NOTIFICATION_ID, notification)
         }
     }
 

@@ -83,8 +83,6 @@ class NotificationHelper(val context: Context) {
                 ExistingPeriodicWorkPolicy.REPLACE,
                 deckMetaDataWorker
             )
-
-        NotificationWorkManager.setupNewWorker(context, workManagerType, tag)
     }
 
     /**
