@@ -449,4 +449,11 @@
 
     <!-- Manage note types -->
     <string name="field_editor_model_not_available">Failed to access collection. Please try again!</string>
+
+    <!--    notification-->
+    <string name="all_deck_notification_new_title">All Deck Reminder</string>
+    <plurals name="all_deck_notification_new_message">
+        <item quantity="one">%1$s card due</item>
+        <item quantity="other">%1$s cards due</item>
+    </plurals>
 </resources>
