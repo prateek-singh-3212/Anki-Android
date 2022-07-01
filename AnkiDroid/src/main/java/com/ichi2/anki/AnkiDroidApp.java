@@ -242,6 +242,9 @@ public class AnkiDroidApp extends Application implements androidx.work.Configura
         Timber.i("AnkiDroidApp: Starting Services");
         new BootService().onReceive(this, new Intent(this, BootService.class));
 
+        Timber.i("AnkiDroidApp: Starting Workers");
+        new NotificationHelper(this).startNotificationWorkManager(0, false);
+
         // TODO: Notification CleanUP. Remove the Notification Service after successful merge of PR #11487 (Notification Work Manager)
         // Register for notifications
         mNotifications.observeForever(unused -> NotificationService.triggerNotificationFor(this));
