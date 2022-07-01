@@ -246,6 +246,9 @@ public class AnkiDroidApp extends Application implements androidx.work.Configura
         Timber.i("AnkiDroidApp: Registering Broadcast Receivers");
         TimeZoneChangeReceiver.Companion.registerTimeZoneChangeReceiver(this, new TimeZoneChangeReceiver());
 
+        Timber.i("AnkiDroidApp: Starting Workers");
+        new NotificationHelper(this).startNotificationWorkManager(0, false);
+
         // TODO: Notification CleanUP. Delete the Notification Service after successful implementation of Notification Work Manager.
         // Register for notifications
         mNotifications.observeForever(unused -> NotificationService.triggerNotificationFor(this));
