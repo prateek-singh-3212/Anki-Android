@@ -354,6 +354,13 @@ class DeckOptions :
                                     AlarmManager.INTERVAL_DAY,
                                     reminderIntent
                                 )
+
+                                NotificationHelper(this@DeckOptions)
+                                    .createScheduledDeckNotification(
+                                        mDeck.getLong("id"),
+                                        TimePreference.parseHours(value),
+                                        TimePreference.parseMinutes(value)
+                                    )
                             }
                             else -> Timber.w("Unknown key type: %s", key)
                         }

@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
+import com.ichi2.anki.model.DeckNotification
 import com.ichi2.anki.worker.NotificationWorkManager
 import com.ichi2.libanki.utils.TimeManager
 import kotlinx.coroutines.CoroutineScope
@@ -63,6 +64,18 @@ class NotificationHelper(val context: Context) {
             val timeDeckData: allTimeAndDecksMap =
                 notificationDatastore.getTimeDeckData()
                     ?: allTimeAndDecksMap()
+
+            notificationDatastore.setDeckSchedData(
+                did,
+                DeckNotification(
+                    true,
+                    did,
+                    "AA",
+                    hourOfDay,
+                    minutesOfHour,
+                    11
+                )
+            )
 
             // Calculate the work type and schedule time
             val timeWorkTypePair = computeNotificationTime(hourOfDay, minutesOfHour, timeDeckData)
