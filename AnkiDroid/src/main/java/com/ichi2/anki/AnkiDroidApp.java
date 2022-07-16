@@ -41,6 +41,7 @@ import android.webkit.CookieManager;
 import com.ichi2.anki.contextmenu.AnkiCardContextMenu;
 import com.ichi2.anki.contextmenu.CardBrowserContextMenu;
 import com.ichi2.anki.exception.StorageAccessException;
+import com.ichi2.anki.receiver.TimeZoneChangeReceiver;
 import com.ichi2.anki.services.BootService;
 import com.ichi2.anki.services.NotificationService;
 import com.ichi2.compat.CompatHelper;
@@ -250,6 +251,9 @@ public class AnkiDroidApp extends Application implements androidx.work.Configura
         // TODO: Notification CleanUP. Delete the Boot Service after successful implementation of Notification Work Manager.
         Timber.i("AnkiDroidApp: Starting Services");
         new BootService().onReceive(this, new Intent(this, BootService.class));
+
+        Timber.i("AnkiDroidApp: Registering Broadcast Receivers");
+        TimeZoneChangeReceiver.Companion.registerTimeZoneChangeReceiver(this, new TimeZoneChangeReceiver());
 
         // TODO: Notification CleanUP. Delete the Notification Service after successful implementation of Notification Work Manager.
         // Register for notifications
