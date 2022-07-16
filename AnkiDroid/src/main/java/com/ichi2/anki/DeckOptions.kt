@@ -347,12 +347,20 @@ class DeckOptions :
 
                                 val calendar = reminderToCalendar(TimeManager.time, reminder)
 
+                                // TODO: Remove Alarm manager after successful merge of PR#11487
                                 alarmManager.setRepeating(
                                     AlarmManager.RTC_WAKEUP,
                                     calendar.timeInMillis,
                                     AlarmManager.INTERVAL_DAY,
                                     reminderIntent
                                 )
+
+                                NotificationHelper(this@DeckOptions)
+                                    .createScheduledDeckNotification(
+                                        mDeck.getLong("id"),
+                                        TimePreference.parseHours(value),
+                                        TimePreference.parseMinutes(value)
+                                    )
                             }
                             else -> Timber.w("Unknown key type: %s", key)
                         }
