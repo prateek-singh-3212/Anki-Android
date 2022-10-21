@@ -182,6 +182,10 @@ class NotificationDatastore private constructor(val context: Context) {
         val datastoreKey = stringPreferencesKey("TIME_DECK_DATA")
         return context.notificationDatastore.data.firstOrNull()?.let {
             try {
+                if (!it.contains(datastoreKey)) {
+                    // Deck data not stored.
+                    return null
+                }
                 objectMapper.readValue(
                     it[datastoreKey],
                     TreeMap::class.java

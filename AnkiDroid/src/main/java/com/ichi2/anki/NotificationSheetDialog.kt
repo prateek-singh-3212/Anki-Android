@@ -74,6 +74,7 @@ class NotificationSheetDialog(
             )
 
             saveDeckNotification(notification)
+            NotificationHelper(requireContext()).scheduledDeckNotification(deckId, compat.getHour(mTimePicker), compat.getMinute(mTimePicker))
         }
         return view
     }

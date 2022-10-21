@@ -95,11 +95,12 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
 
         // Creating hash set of all decks whose notification is going to trigger
         val deckIdsToTrigger = timeDeckDataToTrigger
-            .flatMap { it.value }
+            .flatMap { it.value.toList() }
             .toHashSet()
 
         // Sorting deck notification data with help of deck id.
         val deckNotificationData = topLevelDecks.filter { deckIdsToTrigger.contains(it.did) }
+        Timber.d("top decks: $topLevelDecks \n deckIds: $deckIdsToTrigger \n deckNotification: $deckNotificationData")
 
         // Triggering the deck notification
         for (deck in deckNotificationData) {
@@ -145,11 +146,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         val title = context.getString(R.string.reminder_title)
         val counts =
             Counts(deck.newCount, deck.lrnCount, deck.revCount)
-        val message = context.resources.getQuantityString(
-            R.plurals.reminder_text,
-            counts.count(),
-            deck.fullDeckName
-        )
+        val message = deck.lastDeckNameComponent + " " + counts
 
         // TODO: Check the minimum no. of cards to send notification. This will be Implemented after successful Implementation of Deck Notification UI.
 
@@ -164,7 +161,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
 
         // Build and fire notification.
         val notification = notificationHelper.buildNotification(
-            NotificationChannels.Channel.GENERAL,
+            Channel.GENERAL,
             title,
             message,
             resultPendingIntent
@@ -180,11 +177,11 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         Timber.d("Firing all deck notification.")
         val notificationHelper = NotificationHelper(context)
 
-        val preferences = AnkiDroidApp.getSharedPrefs(context)
-        val minCardsDue = preferences.getInt(
-            Preferences.MINIMUM_CARDS_DUE_FOR_NOTIFICATION,
-            Preferences.PENDING_NOTIFICATIONS_ONLY
-        )
+//        val preferences = AnkiDroidApp.getSharedPrefs(context)
+//        val minCardsDue = preferences.getInt(
+//            Preferences.MINIMUM_CARDS_DUE_FOR_NOTIFICATION,
+//            Preferences.PENDING_NOTIFICATIONS_ONLY
+//        )
 
         // All Decks Notification.
         val totalDueCount = Counts()
@@ -203,19 +200,16 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
             PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        if (totalDueCount.count() < minCardsDue) {
-            // Due card limit is higher.
-            return
-        }
+//        if (totalDueCount.count() < minCardsDue) {
+//            // Due card limit is higher.
+//            return
+//        }
 
         // Build the notification
         val notification = notificationHelper.buildNotification(
-            NotificationChannels.Channel.GENERAL,
-            context.resources.getString(R.string.all_deck_notification_new_title),
-            context.resources.getQuantityString(
-                R.plurals.all_deck_notification_new_message,
-                totalDueCount.count()
-            ),
+            Channel.GENERAL,
+            "Anki Notification: All Deck",
+            "DASSASD",
             resultPendingIntent
         )
 
@@ -228,10 +222,10 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
     private suspend fun rescheduleNextWorker() {
         Timber.d("Task Completed. Rescheduling...")
         val notificationDatastore = NotificationDatastore.getInstance(context)
-        val timeAndDeckData = notificationDatastore.getTimeDeckData() ?: NotificationTodo()
+        val timeAndDeckData = notificationDatastore.getTimeDeckData() ?: NotificationTodoObject()
 
         val nextTriggerTime = getTriggerTime(timeAndDeckData)
-        val initialDiff = TimeManager.time.intTimeMS() - nextTriggerTime
+        val initialDiff = nextTriggerTime - TimeManager.time.intTimeMS()
 
         Timber.d("Next trigger time $nextTriggerTime Initial Difference $initialDiff")
         NotificationHelper(context).startNotificationWorker(initialDiff, true)

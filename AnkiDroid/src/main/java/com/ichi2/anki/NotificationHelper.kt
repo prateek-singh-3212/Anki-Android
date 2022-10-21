@@ -64,7 +64,7 @@ class NotificationHelper(val context: Context) {
             // Collect all the time deck data.
             val timeDeckData: NotificationTodo =
                 notificationDatastore.getTimeDeckData()
-                    ?: NotificationTodo()
+                    ?: NotificationTodoObject()
 
             // Calculate the Notification Work Type and schedule time of notification.
             val notificationData = notificationData(hourOfDay, minutesOfHour, timeDeckData)
@@ -288,12 +288,12 @@ class NotificationHelper(val context: Context) {
             val notificationDataToDelete = mutableListOf<TimeOfNotification>()
             deckIds.forEach { did ->
                 for (timeDeckData in allTimeAndDecksMap) {
-                    if (!timeDeckData.value.contains(did)) {
+                    if (!timeDeckData.value.toList().contains(did)) {
                         // list of deck doesn't contains did.
                         break
                     }
                     // Deck id found delete the deck.
-                    if (timeDeckData.value.size == 1) {
+                    if (timeDeckData.value.toList().size == 1) {
                         Timber.d("List of deck contains only one deck id.")
                         notificationDataToDelete.add(timeDeckData.key)
                     } else {
@@ -304,6 +304,7 @@ class NotificationHelper(val context: Context) {
             }
             notificationDataToDelete.forEach {
                 allTimeAndDecksMap.remove(it)
+                Timber.d("All Time deck data: $allTimeAndDecksMap")
             }
             notificationDatastore.setTimeDeckData(allTimeAndDecksMap)
         }
@@ -338,13 +339,13 @@ class NotificationHelper(val context: Context) {
      * @param pendingIntent Activity which need to open on notification tap.
      * */
     fun buildNotification(
-        notificationChannel: NotificationChannels.Channel,
+        notificationChannel: Channel,
         title: String,
         body: String,
         pendingIntent: PendingIntent
     ) = NotificationCompat.Builder(
         context,
-        NotificationChannels.getId(notificationChannel)
+        notificationChannel.id
     ).apply {
         setCategory(NotificationCompat.CATEGORY_REMINDER)
         setContentTitle(title)
