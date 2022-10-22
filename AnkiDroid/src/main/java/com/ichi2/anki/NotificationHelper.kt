@@ -342,7 +342,8 @@ class NotificationHelper(val context: Context) {
         notificationChannel: Channel,
         title: String,
         body: String,
-        pendingIntent: PendingIntent
+        pendingIntent: PendingIntent,
+        groupKey: String? = null
     ) = NotificationCompat.Builder(
         context,
         notificationChannel.id
@@ -354,6 +355,7 @@ class NotificationHelper(val context: Context) {
         color = ContextCompat.getColor(context, R.color.material_light_blue_700)
         setContentIntent(pendingIntent)
         setAutoCancel(true)
+        setGroup(groupKey)
     }.build()
 
     /**

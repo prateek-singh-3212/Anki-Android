@@ -167,7 +167,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         val title = context.getString(R.string.reminder_title)
         val counts =
             Counts(deck.newCount, deck.lrnCount, deck.revCount)
-        val message = deck.lastDeckNameComponent + " " + counts
+        val message = "${counts.count()} cards to Review in ${deck.lastDeckNameComponent}"
 
         // TODO: Check the minimum no. of cards to send notification. This will be Implemented after successful Implementation of Deck Notification UI.
 
@@ -185,10 +185,11 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
             Channel.GENERAL,
             title,
             message,
-            resultPendingIntent
+            resultPendingIntent,
+            "com.ichi2.anki.DECK_NOTIFICATION"
         )
 
-        notificationHelper.triggerNotificationNow(INDIVIDUAL_DECK_NOTIFICATION, notification)
+        notificationHelper.triggerNotificationNow(deck.did.toInt(), notification)
     }
 
     /**
@@ -221,16 +222,17 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
             PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-//        if (totalDueCount.count() < minCardsDue) {
-//            // Due card limit is higher.
-//            return
-//        }
+        if (totalDueCount.count() == 0) {
+            // Due card limit is higher.
+            Timber.d("No card is left for review today.")
+            return
+        }
 
         // Build the notification
         val notification = notificationHelper.buildNotification(
             Channel.GENERAL,
-            "Anki Notification: All Deck",
-            "DASSASD",
+            "All Decks",
+            "${totalDueCount.count()} cards are due for Today.",
             resultPendingIntent
         )
 
@@ -261,7 +263,6 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
             it.timeInMillis
         }
         private const val ALL_DECK_NOTIFICATION_ID = 11
-        private const val INDIVIDUAL_DECK_NOTIFICATION = 22
 
         /**
          * Calculates the next time to trigger the Notification WorkManager.
