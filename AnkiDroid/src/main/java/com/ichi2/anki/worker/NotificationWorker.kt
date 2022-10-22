@@ -28,6 +28,7 @@ import com.ichi2.anki.worker.NotificationWorker.Companion.getTriggerTime
 import com.ichi2.compat.CompatHelper
 import com.ichi2.libanki.sched.Counts
 import com.ichi2.libanki.sched.DeckDueTreeNode
+import com.ichi2.libanki.sched.TreeNode
 import com.ichi2.libanki.utils.TimeManager
 import timber.log.Timber
 import java.util.*
@@ -58,20 +59,39 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         Timber.d("NotificationManagerWorker: Worker status -> STARTED")
 
         // Collect the deck details
-        val topLevelDecks = try {
+        val allDueDecks = mutableListOf<DeckDueTreeNode>()
+        try {
             withCol {
-                sched.deckDueTree().map { it.value }
+                val topLevelDecks = sched.deckDueTree()
+                processDueDeckChildren(topLevelDecks, allDueDecks)
+                Timber.d(topLevelDecks.toString())
             }
         } catch (ex: Exception) {
             // Unable to access collection
             return Result.failure()
         }
 
-        processSingleDeckNotifications(topLevelDecks)
-        fireAllDeckNotification(topLevelDecks)
+        processSingleDeckNotifications(allDueDecks)
+        fireAllDeckNotification(allDueDecks)
 
         Timber.d("NotificationManagerWorker: Worker status -> FINISHED")
         return Result.success() // Done work successfully...
+    }
+
+    /**
+     * Put the deck and all of its children into the single list. i.e it organise all the deck,
+     * subdecks, sub-sub decks etc. into [allDueDecks] list.
+     */
+    private fun processDueDeckChildren(
+        treeNodeList: List<TreeNode<DeckDueTreeNode>>,
+        allDueDecks: MutableList<DeckDueTreeNode>
+    ) {
+        treeNodeList.forEach {
+            allDueDecks.add(it.value)
+            if (it.hasChildren()) {
+                processDueDeckChildren(it.children, allDueDecks)
+            }
+        }
     }
 
     /**
@@ -79,7 +99,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
      * Replaying those decks 24 hours later
      * Remove decks which are not top level anymore from notification setting.
      * */
-    private suspend fun processSingleDeckNotifications(topLevelDecks: List<DeckDueTreeNode>) {
+    private suspend fun processSingleDeckNotifications(allDecks: List<DeckDueTreeNode>) {
         Timber.d("Processing single deck notification...")
         val currentTime = TimeManager.time.currentDate.time
 
@@ -91,7 +111,8 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         }
 
         // Filtered all the decks whose notification time is less than current time.
-        val timeDeckDataToTrigger = timeDeckData.filterTo(HashMap()) { it.key.toLong() <= currentTime }
+        val timeDeckDataToTrigger =
+            timeDeckData.filterTo(HashMap()) { it.key.toLong() <= currentTime }
 
         // Creating hash set of all decks whose notification is going to trigger
         val deckIdsToTrigger = timeDeckDataToTrigger
@@ -99,8 +120,8 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
             .toHashSet()
 
         // Sorting deck notification data with help of deck id.
-        val deckNotificationData = topLevelDecks.filter { deckIdsToTrigger.contains(it.did) }
-        Timber.d("top decks: $topLevelDecks \n deckIds: $deckIdsToTrigger \n deckNotification: $deckNotificationData")
+        val deckNotificationData = allDecks.filter { deckIdsToTrigger.contains(it.did) }
+        Timber.d("top decks: $allDecks \n deckIds: $deckIdsToTrigger \n deckNotification: $deckNotificationData")
 
         // Triggering the deck notification
         for (deck in deckNotificationData) {
@@ -173,7 +194,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
     /**
      * Fire a notification stating that there remains at least [minCardsDue] in the collection
      * */
-    private fun fireAllDeckNotification(topLevelDecks: List<DeckDueTreeNode>) {
+    private fun fireAllDeckNotification(allDecks: List<DeckDueTreeNode>) {
         Timber.d("Firing all deck notification.")
         val notificationHelper = NotificationHelper(context)
 
@@ -185,7 +206,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
 
         // All Decks Notification.
         val totalDueCount = Counts()
-        topLevelDecks.forEach {
+        allDecks.forEach {
             totalDueCount.addLrn(it.lrnCount)
             totalDueCount.addNew(it.newCount)
             totalDueCount.addRev(it.revCount)
