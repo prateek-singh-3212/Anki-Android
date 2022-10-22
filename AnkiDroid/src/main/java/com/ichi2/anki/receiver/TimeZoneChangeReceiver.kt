@@ -50,7 +50,7 @@ class TimeZoneChangeReceiver : BroadcastReceiver() {
              * */
             fun getOffsetFromNow(timezone: String) = TimeZone.getTimeZone(timezone).getOffset(now)
 
-            if (oldTimezone != "null" || getOffsetFromNow(oldTimezone) == getOffsetFromNow(newTimezone)) {
+            if (oldTimezone != "null" && getOffsetFromNow(oldTimezone) == getOffsetFromNow(newTimezone)) {
                 Timber.d("No Timezone changed found...")
                 return@launch
             }
