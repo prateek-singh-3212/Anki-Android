@@ -70,7 +70,8 @@ class NotificationSheetDialog(
                 true,
                 deckId,
                 compat.getHour(mTimePicker),
-                compat.getMinute(mTimePicker)
+                compat.getMinute(mTimePicker),
+                mSubDeck.isChecked
             )
 
             saveDeckNotification(notification)

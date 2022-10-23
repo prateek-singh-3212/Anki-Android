@@ -27,6 +27,7 @@ data class DeckNotification(
     val did: DeckId,
     val schedHour: Int,
     val schedMinutes: Int,
+    val includeSubdecks: Boolean
 ) {
 
     // Empty constructor. Required for jackson to serialize.
@@ -34,7 +35,8 @@ data class DeckNotification(
         false,
         Decks.NOT_FOUND_DECK_ID,
         0,
-        0
+        0,
+        false
     )
 }
 

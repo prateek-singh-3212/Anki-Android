@@ -59,12 +59,11 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         Timber.d("NotificationManagerWorker: Worker status -> STARTED")
 
         // Collect the deck details
-        val allDueDecks = mutableListOf<DeckDueTreeNode>()
+        val allDueDecks = mutableListOf<TreeNode<DeckDueTreeNode>>()
         try {
             withCol {
                 val topLevelDecks = sched.deckDueTree()
                 processDueDeckChildren(topLevelDecks, allDueDecks)
-                Timber.d(topLevelDecks.toString())
             }
         } catch (ex: Exception) {
             // Unable to access collection
@@ -84,10 +83,10 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
      */
     private fun processDueDeckChildren(
         treeNodeList: List<TreeNode<DeckDueTreeNode>>,
-        allDueDecks: MutableList<DeckDueTreeNode>
+        allDueDecks: MutableList<TreeNode<DeckDueTreeNode>>
     ) {
         treeNodeList.forEach {
-            allDueDecks.add(it.value)
+            allDueDecks.add(it)
             if (it.hasChildren()) {
                 processDueDeckChildren(it.children, allDueDecks)
             }
@@ -99,7 +98,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
      * Replaying those decks 24 hours later
      * Remove decks which are not top level anymore from notification setting.
      * */
-    private suspend fun processSingleDeckNotifications(allDecks: List<DeckDueTreeNode>) {
+    private suspend fun processSingleDeckNotifications(allDecks: MutableList<TreeNode<DeckDueTreeNode>>) {
         Timber.d("Processing single deck notification...")
         val currentTime = TimeManager.time.currentDate.time
 
@@ -120,13 +119,13 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
             .toHashSet()
 
         // Sorting deck notification data with help of deck id.
-        val deckNotificationData = allDecks.filter { deckIdsToTrigger.contains(it.did) }
+        val deckNotificationData = allDecks.filter { deckIdsToTrigger.contains(it.value.did) }
         Timber.d("top decks: $allDecks \n deckIds: $deckIdsToTrigger \n deckNotification: $deckNotificationData")
 
         // Triggering the deck notification
         for (deck in deckNotificationData) {
             fireDeckNotification(deck)
-            deckIdsToTrigger.remove(deck.did)
+            deckIdsToTrigger.remove(deck.value.did)
         }
 
         // Decks may have been deleted. This means that there are decks that should have been triggered but were not present.
@@ -160,14 +159,25 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
      * We consider it is needed if [deck] or any of its subdecks have cards.
      * Even if subdecks have cards, we only trigger notification for [deck] itself, not for the subdecks
      */
-    private fun fireDeckNotification(deck: DeckDueTreeNode) {
-        Timber.d("Firing deck notification for did -> %d", deck.did)
+    private suspend fun fireDeckNotification(deckNode: TreeNode<DeckDueTreeNode>) {
+        Timber.d("Firing deck notification for did -> %d", deckNode.value.did)
+        val deck = deckNode.value
         val notificationHelper = NotificationHelper(context)
+        val notificationData = NotificationDatastore.getInstance(context).getDeckSchedData(deck.did)
 
         val title = context.getString(R.string.reminder_title)
-        val counts =
-            Counts(deck.newCount, deck.lrnCount, deck.revCount)
-        val message = "${counts.count()} cards to Review in ${deck.lastDeckNameComponent}"
+        val message = if (deckNode.hasChildren() && notificationData?.includeSubdecks == true) {
+            val counts = Counts()
+            deckNode.children.forEach {
+                counts.addLrn(it.value.lrnCount)
+                counts.addRev(it.value.revCount)
+                counts.addNew(it.value.newCount)
+            }
+            "${counts.count()} cards to review in ${deck.lastDeckNameComponent} including ${deckNode.children.size} subdecks."
+        } else {
+            val counts = Counts(deck.newCount, deck.lrnCount, deck.revCount)
+            "${counts.count()} cards to Review in ${deck.lastDeckNameComponent}"
+        }
 
         // TODO: Check the minimum no. of cards to send notification. This will be Implemented after successful Implementation of Deck Notification UI.
 
@@ -195,7 +205,7 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
     /**
      * Fire a notification stating that there remains at least [minCardsDue] in the collection
      * */
-    private fun fireAllDeckNotification(allDecks: List<DeckDueTreeNode>) {
+    private fun fireAllDeckNotification(allDecks: MutableList<TreeNode<DeckDueTreeNode>>) {
         Timber.d("Firing all deck notification.")
         val notificationHelper = NotificationHelper(context)
 
@@ -208,9 +218,9 @@ class NotificationWorker(val context: Context, workerParameters: WorkerParameter
         // All Decks Notification.
         val totalDueCount = Counts()
         allDecks.forEach {
-            totalDueCount.addLrn(it.lrnCount)
-            totalDueCount.addNew(it.newCount)
-            totalDueCount.addRev(it.revCount)
+            totalDueCount.addLrn(it.value.lrnCount)
+            totalDueCount.addNew(it.value.newCount)
+            totalDueCount.addRev(it.value.revCount)
         }
 
         // Creates an explicit intent for an DeckPiker Activity.
